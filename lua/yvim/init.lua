@@ -34,7 +34,7 @@ end
 
 local function valid_buffer()
 	local ft = vim.bo[get_bufnr()].ft
-	return ft == "json"
+	return ft == "json" or ft == "yaml"
 end
 
 local function getpos()
@@ -100,6 +100,7 @@ local function get_first_child(bufnr)
 	return lowest
 end
 
+-- can reuse
 local function move(node)
 	local new_row, new_col = node:range()
 	vim.api.nvim_win_set_cursor(0, { new_row + 1, new_col })
