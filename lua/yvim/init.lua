@@ -3,60 +3,32 @@ local utils = require("yvim.utils")
 
 local M = {}
 
--- -- can reuse
--- local function project(row, col)
--- 	return row * 100000 + col
--- end
+local function i(value)
+	print(vim.inspect(value))
+end
 
--- -- can reuse
--- local function project_start(node)
--- 	local row, col = node:range()
--- 	return project(row, col)
--- end
-
--- -- can reuse
--- local function project_end(node)
--- 	local _, _, row, col = node:range()
--- 	return project(row, col)
--- end
-
--- -- can reuse
--- local function contains(a, b)
--- 	if project_start(a) > project_start(b) then
--- 		return false
--- 	end
-
--- 	if project_end(a) < project_end(b) then
--- 		return false
--- 	end
-
--- 	return true
--- end
-
--- local function get_bufnr(bufnr)
--- 	return bufnr or vim.api.nvim_get_current_buf()
--- end
-
--- local function valid_buffer()
--- 	local ft = vim.bo[get_bufnr()].ft
--- 	return ft == "json" or ft == "yaml"
--- end
-
--- local function getpos()
--- 	return vim.fn.line(".") - 1, vim.fn.col(".") - 1
--- end
-
--- TODO: create one for yaml
+-- TODO: create one for yaml or make it compatible with both
 local function get_root(bufnr)
-	local parser = parsers.get_parser(bufnr, "json")
+	-- local ft = vim.bo[bufnr].ft
+	local ft = vim.bo[utils.get_bufnr()].ft
+	local parser = parsers.get_parser(bufnr, ft)
 	if not parser then
 		error("No treesitter parser found. Install one using :TSInstall <language>")
 	end
 	return parser:parse()[1]:root()
 end
 
+-- local function get_root_yaml(bufnr)
+-- 	local parser = parsers.get_parser(bufnr, "yaml")
+-- 	if not parser then
+-- 		error("No treesitter parser found. Install one using :TSInstall <language>")
+-- 	end
+-- 	return parser:parse()[1]:root()
+-- end
+
 -- TODO: make sure this works for yaml, otherwise create a new one
 local function get_parent(bufnr, count)
+	local ft = vim.bo[utils.get_bufnr()].ft
 	if not count or count < 1 then
 		count = 1
 	end
@@ -72,7 +44,12 @@ local function get_parent(bufnr, count)
 	while current_node:parent() ~= nil and current_node:parent():type() ~= "document" do
 		current_node = current_node:parent()
 
-		if current_node:type() == "pair" then
+		local type_comp = "pair"
+		if ft == "yaml" then
+			type_comp = "block_mapping_pair"
+		end
+
+		if current_node:type() == type_comp then
 			current_count = current_count + 1
 			if current_count == count then
 				break
@@ -86,7 +63,14 @@ end
 -- TODO: create one for yaml
 local function get_first_child(bufnr)
 	local current_node = get_parent(bufnr, 1)
-	local query = vim.treesitter.parse_query("json", "(pair) @pair")
+	local ft = vim.bo[utils.get_bufnr()].ft
+	local query = {}
+
+	if ft == "yaml" then
+		query = vim.treesitter.query.parse("yaml", "(block_mapping_pair) @block_mapping_pair")
+	elseif ft == "json" then
+		query = vim.treesitter.query.parse("json", "(pair) @pair")
+	end
 
 	local lowest = nil
 	local lowest_diff = nil
@@ -108,10 +92,7 @@ local function get_first_child(bufnr)
 	return lowest
 end
 
--- local function move(node)
--- 	local new_row, new_col = node:range()
--- 	vim.api.nvim_win_set_cursor(0, { new_row + 1, new_col })
--- end
+-- ==============================
 
 function M.to_immediate()
 	if not utils.valid_buffer() then

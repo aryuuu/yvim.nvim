@@ -5,4 +5,8 @@ foo:
   zoo:
     - wee
     - mama
+  yeah:
+    - uhuh:
+      - yeehaw
+      - hellyeah
 
